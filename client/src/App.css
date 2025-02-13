@@ -1,0 +1,45 @@
+#root {
+  
+  margin: 0 auto;
+  padding: 0rem;
+  /* text-align: center; */
+  
+  
+}
+.log{
+  padding: 8rem;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* .sign{
+  max-width: 100%;
+  max-height: 100%;
+}
+main{
+  
+  max-width: 100lh;
+  
+  
+} */
+/* .yo1{
+  background-color: red;
+  align-items: center;
+}
+.yo2{
+  background-color: blue;
+  max-height: max-content;
+}
+form {
+  display: flex;
+  flex-direction: column; 
+  
+  gap: 10px;               
+  width: 300px;             
+  padding: 20px;
+  color: black;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+} */
