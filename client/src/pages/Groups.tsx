@@ -291,6 +291,7 @@ const Groups: React.FC = () => {
 
       alert(response.data.message || "Group deleted successfully!");
     console.log("Group deleted:", response.data);
+    setSettingMOdal(false);
 
     } catch (error) {
       console.log("delete me dikkat")
@@ -314,6 +315,7 @@ const Groups: React.FC = () => {
 
       alert(response.data.message || "Member removed successfully!");
     console.log("Member removed:", response.data);
+
 
 
     } catch (error) {

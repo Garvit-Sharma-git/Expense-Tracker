@@ -8,7 +8,7 @@ import {
   addExpenseToGroup,
   getUserGroups,
   getGroupMembers,
-  
+   
 } from "../controllers/groupController";
 
 const router = express.Router();
@@ -19,7 +19,7 @@ router.delete('/remove-member/:groupId/:email',authMiddleware,removeMember);
 router.delete("/delete/:groupId", authMiddleware, deleteGroup);
 
 router.get('/user-groups',authMiddleware,getUserGroups);
-router.post("/add-expense", authMiddleware, addExpenseToGroup);
+router.post("/add-expense", authMiddleware, addExpenseToGroup); 
 
 router.get('/group-members/:groupId',authMiddleware,getGroupMembers);
 

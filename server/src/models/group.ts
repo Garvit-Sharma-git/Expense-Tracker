@@ -7,12 +7,10 @@ interface IGroup extends Document{
     members:mongoose.Types.ObjectId[];
     expenses:mongoose.Types.ObjectId[];
     createdAt:Date;
-    balances: [
-        {
-          user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // User ID
-          amount: { type: Number, default: 0 }, // How much they owe (negative means they are owed money)
-        }
-      ];
+    balances: {
+          user:  mongoose.Schema.Types.ObjectId; // User ID
+          amount: number; // How much they owe (negative means they are owed money)
+        }[];
       
 }
 

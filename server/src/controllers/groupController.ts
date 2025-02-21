@@ -12,11 +12,11 @@ interface custom extends Request {
     email: string;
     friends: string[];
     friendRequests: string[];
-    groupIds:string[]
+    groupIds: string[];
   };
 }
 
-export const createGroup = async (req: custom, res: Response):Promise<any> => {
+export const createGroup = async (req: custom, res: Response): Promise<any> => {
   try {
     const { name, members } = req.body;
     const admin = req.user?.id;
@@ -25,11 +25,12 @@ export const createGroup = async (req: custom, res: Response):Promise<any> => {
       return res.status(400).json({ message: "Invalid Group Crendentials" });
     }
 
-    const exisitingGroups = await Group.findOne({name,admin})
-    if(exisitingGroups){
-      return res.status(400).json({error:"You already have a group with this name"})
+    const exisitingGroups = await Group.findOne({ name, admin });
+    if (exisitingGroups) {
+      return res
+        .status(400)
+        .json({ error: "You already have a group with this name" });
     }
-
 
     const memberDocs = await User.find({ email: { $in: members } });
     const memberIds = memberDocs.map((user) => user._id);
@@ -58,8 +59,7 @@ export const createGroup = async (req: custom, res: Response):Promise<any> => {
   }
 };
 
-
-export const addMember = async (req: custom, res: Response):Promise<any> => {
+export const addMember = async (req: custom, res: Response): Promise<any> => {
   try {
     console.log("Received request body:", req.body);
 
@@ -83,11 +83,10 @@ export const addMember = async (req: custom, res: Response):Promise<any> => {
         .status(401)
         .json({ message: "You are not the admin of this group" });
     }
-    
+
     const user = await User.findOne({ email: email.trim().toLowerCase() });
 
     if (!user) {
-      
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -112,10 +111,11 @@ export const addMember = async (req: custom, res: Response):Promise<any> => {
   }
 };
 
-
-export const removeMember = async (req: custom, res: Response) :Promise<any>  => {
+export const removeMember = async (
+  req: custom,
+  res: Response
+): Promise<any> => {
   try {
-    
     const { email, groupId } = req.params;
     const group = await Group.findById(groupId);
 
@@ -123,8 +123,8 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
       console.log(" Email is missing!");
       return res.status(400).json({ message: "Email is required" });
     }
- 
-    console.log("removing email",email);
+
+    console.log("removing email", email);
 
     if (!group) {
       return res.status(404).json({ message: " Group not found " });
@@ -138,9 +138,7 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
 
     const user = await User.findOne({ email: email.trim().toLowerCase() });
     if (!user) {
-      return res
-      .status(404)
-      .json({ message: " User not found " });
+      return res.status(404).json({ message: " User not found " });
     }
 
     if (!group?.members.includes(user._id as mongoose.Types.ObjectId)) {
@@ -149,84 +147,120 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
         .json({ message: "User does not exist in the group !!" });
     }
 
-    group.members = group?.members.filter((id) => id.toString() !== (user._id as mongoose.Types.ObjectId).toString()) 
+    group.members = group?.members.filter(
+      (id) => id.toString() !== (user._id as mongoose.Types.ObjectId).toString()
+    );
     await group.save();
 
     await User.findByIdAndUpdate(user._id, { $pull: { groupIds: groupId } });
 
-    res.status(200).json({ message: "Member of this prestigious removed from the group",group });
+    res
+      .status(200)
+      .json({
+        message: "Member of this prestigious removed from the group",
+        group,
+      });
   } catch (error) {
     res.status(406).json({ error: "Error Removing Member", details: error });
   }
 };
 
-
-export const deleteGroup = async (req:custom , res:Response) :Promise<any>  => {
-    try {
-        const { groupId} = req.params;
-        const group = await Group.findById(groupId);
-
-        if(!group){
-          return res.status(404).json({message:"Group not found"});
-        }
-
-        if(group.admin.toString() !== req.user?.id){
-          return res.status(401).json({message:"You are not the admin of the group"})
-        }
-
-        for(const memberId of group.members){
-          await User.findByIdAndUpdate(memberId,{$pull:{groupIds:group._id}})
-        }
-
-        await Group.deleteOne({_id:groupId}); //id mention kari hai 
-        await Expense.deleteMany({groupId:groupId});
-        res.status(200).json({message:"Group deleted successfully"});
-
-    } catch (error) {
-      res.status(500).json({error:"Error Deleting Group",details:error});
-        
-    }
-}
-
-
-export const addExpenseToGroup = async (req:custom , res:Response) :Promise<any> => {
+export const deleteGroup = async (req: custom, res: Response): Promise<any> => {
   try {
-    const {groupId, description, amount, paidBy, splitAmong} = req.body;
+    const { groupId } = req.params;
+    const group = await Group.findById(groupId);
+
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
+    }
+
+    if (group.admin.toString() !== req.user?.id) {
+      return res
+        .status(401)
+        .json({ message: "You are not the admin of the group" });
+    }
+
+    for (const memberId of group.members) {
+      await User.findByIdAndUpdate(memberId, {
+        $pull: { groupIds: group._id },
+      });
+    }
+
+    await Group.deleteOne({ _id: groupId }); //id mention kari hai
+    await Expense.deleteMany({ groupId: groupId });
+    res.status(200).json({ message: "Group deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Error Deleting Group", details: error });
+  }
+};
+
+export const addExpenseToGroup = async (
+  req: custom,
+  res: Response
+): Promise<any> => {
+  try {
+    const { groupId, description, amount, paidBy, splitAmong, splitDetails } = req.body;
 
     console.log("Received request:", req.body);
 
     const group = await Group.findById(groupId);
 
-    if(!group){
-      return res.status(404).json({message:"Group not found"});
+    if (!group) {
+      return res.status(404).json({ message: "Group not found" });
     }
 
-    if(!group.members.includes(req.user?.id as unknown as mongoose.Types.ObjectId)){
-      return res.status(401).json({message:"You are not a member of this group"});
+    if (
+      !group.members.includes(
+        req.user?.id as unknown as mongoose.Types.ObjectId
+      )
+    ) {
+      return res
+        .status(401)
+        .json({ message: "You are not a member of this group" });
     }
 
-    const expense = new GroupExpense({ group: groupId, description, amount, paidBy, splitAmong})
+    const totalSplitAmount = splitDetails.reduce(( sum:number , details: {amount:number}) => sum+details.amount , 0)
+    if(totalSplitAmount !== amount){
+      
+      return res.status(400).json({ message: "Total split amounts do not match expense amount" });
+    }
+
+    const expense = new GroupExpense({
+      group: groupId,
+      description,
+      amount,
+      paidBy,
+      splitAmong,
+      splitDetails,
+    });
     await expense.save();
     // console.log(expense)
 
-    group.expenses.push(expense._id as mongoose.Types.ObjectId); 
+    group.expenses.push(expense._id as mongoose.Types.ObjectId);
     await group.save();
-    
+
     console.log("Group updated:", group);
 
-    res.status(201).json({message:"Expense added to the group successfully",expense});
+    
 
+    res
+      .status(201)
+      .json({ message: "Expense added to the group successfully", expense });
   } catch (error) {
     console.error("Error adding expense:", error);
-    res.status(500).json({error:"Error Adding Expense to Group",details:error});
+    res
+      .status(500)
+      .json({ error: "Error Adding Expense to Group", details: error });
   }
-}
+};
 
-
-export const getUserGroups = async ( req: custom, res: Response):Promise<any> => {
+export const getUserGroups = async (
+  req: custom,
+  res: Response
+): Promise<any> => {
   try {
-    if(!req.user){
-      return res.status(401).json({error:"Unauthorized: User not found"})
+    if (!req.user) {
+      return res.status(401).json({ error: "Unauthorized: User not found" });
     }
 
     const group = await Group.find({ _id: { $in: req.user?.groupIds } })
@@ -234,46 +268,114 @@ export const getUserGroups = async ( req: custom, res: Response):Promise<any> =>
       .populate({
         path: "expenses",
         model: "GroupExpense",
-        select: "description amount paidBy splitAmong date createdAt"
+        select: "description amount paidBy splitAmong date createdAt",
       });
-      console.log("Fetched Groups with expenses:", JSON.stringify(group, null, 2));
+    // console.log(
+    //   "Fetched Groups with expenses:",
+    //   JSON.stringify(group, null, 2)
+    // );
     // console.log("Fetching groups for user:", req.user.id);
     // console.log("User Group IDs:", req.user.groupIds);
 
     // const group = await Group.find({ _id: { $in: req.user?.groupIds }}).populate("members", "name email");
     // console.log(req.user?.id);
     // console.log("Fetched Groups:", group);
-     
+
     res.status(201).json({ group });
   } catch (error) {
     console.error("Error Fetching Group:", error);
     res.status(500).json({ error: "Error Fetching Group", details: error });
   }
-}
+};
 
-export const getGroupMembers = async ( req:custom , res: Response):Promise<any> => {
-
+export const getGroupMembers = async (
+  req: custom,
+  res: Response
+): Promise<any> => {
   try {
-    const {groupId} = req.params
+    const { groupId } = req.params;
 
-    const group = await Group.findById(groupId).populate("members" , "name email");
+    const group = await Group.findById(groupId).populate(
+      "members",
+      "name email"
+    );
 
-    if(!group){
-      return res.status(404).json({ message: " Group not found "})
+    if (!group) {
+      return res.status(404).json({ message: " Group not found " });
     }
 
-    res.status(200).json({ members: group.members })
     
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching group members",details: error })
-  }
-}
 
+    res.status(200).json({ members: group.members });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching group members", details: error });
+  }
+};
+
+//
+const recalculateBalances = async (groupId: string) => {
+
+  const group = await Group.findById(groupId).populate({
+    path: "expenses",
+    populate:[{
+      path: "paidBy",
+      select: "_id name",
+    },
+    {
+      path:"splitDetails.user", select:"_id name"
+    }
+  ],
+  });
+
+  console.log("hey")
+  console.log("populated group:", JSON.stringify(group,null,2));
+
+  if (!group) throw new Error("Group not found");
+
+  
+
+  const totalPaid: Record<string, number> = {};
+  const totalShare: Record<string, number> = {};
+
+  // Initialize balances
+  group.members.forEach((member) => {
+    totalPaid[member.toString()] = 0;
+    totalShare[member.toString()] = 0;
+  });
+
+  for (const expense of group.expenses as any[]) {
+    
+    const paidById = (expense.paidBy as { _id: mongoose.Types.ObjectId })._id.toString();
+    totalPaid[paidById] += expense.amount;
+
+    for (const detail of expense.splitDetails) {
+      
+      const userId = (detail.user as { _id: mongoose.Types.ObjectId })._id.toString();
+      totalShare[userId] = (totalShare[userId] || 0) + detail.amount;
+    }
+
+    
+  }
+
+  const netBalances: Record<string, number> = {};
+  Object.keys(totalPaid).forEach((userId) => {
+    netBalances[userId] = totalPaid[userId] - totalShare[userId];
+  });
+
+  group.balances = Object.keys(netBalances).map((userId) => ({
+    user: new mongoose.Schema.Types.ObjectId(userId),
+    amount: netBalances[userId],
+  }));
+
+  await group.save();
+};
 
 // export const settleUpExpense = async ( req:custom,res:Response) => {
 
 //   try {
-//     const { groupId, amount , payerEmail, payeeEmail } = req.body;
+//     const { groupId } = req.params;
 
 //     const group = await Group.findById(groupId);
 //     if (!group) return res.status(404).json({ message: "Group not found" });
@@ -287,12 +389,9 @@ export const getGroupMembers = async ( req:custom , res: Response):Promise<any> 
 //       return res.status(400).json({ message: "Payer or Payee not in the group. Both must be in the group. " });
 //     }
 
-//     if(!group.balances){
-//       group.balances = [];
-//     }
 //     res.status(200).json({ message: "Expense settled up successfully" });
-    
+
 //   } catch (error) {
-    
+
 //   }
 // }
