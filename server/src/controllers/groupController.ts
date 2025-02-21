@@ -58,9 +58,20 @@ export const createGroup = async (req: custom, res: Response):Promise<any> => {
   }
 };
 
+
 export const addMember = async (req: custom, res: Response):Promise<any> => {
   try {
+    console.log("Received request body:", req.body);
+
     const { email, groupId } = req.body;
+
+    if (!email) {
+      console.log(" Email is missing!");
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    console.log("🔍 Searching for user with email:", email);
+
     const group = await Group.findById(groupId);
 
     if (!group) {
@@ -72,8 +83,9 @@ export const addMember = async (req: custom, res: Response):Promise<any> => {
         .status(401)
         .json({ message: "You are not the admin of this group" });
     }
+    
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
 
-    const user = await User.findOne({ email });
     if (!user) {
       
       return res.status(404).json({ message: "User not found" });
@@ -100,13 +112,22 @@ export const addMember = async (req: custom, res: Response):Promise<any> => {
   }
 };
 
+
 export const removeMember = async (req: custom, res: Response) :Promise<any>  => {
   try {
-    const { email, groupId } = req.body;
+    
+    const { email, groupId } = req.params;
     const group = await Group.findById(groupId);
 
+    if (!email) {
+      console.log(" Email is missing!");
+      return res.status(400).json({ message: "Email is required" });
+    }
+ 
+    console.log("removing email",email);
+
     if (!group) {
-      res.status(404).json({ message: " Group not found " });
+      return res.status(404).json({ message: " Group not found " });
     }
 
     if (group?.admin.toString() !== req.user?.id) {
@@ -115,9 +136,11 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
         .json({ message: " You are not the admin of this group " });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: email.trim().toLowerCase() });
     if (!user) {
-      return res.status(404).json({ message: " User not found " });
+      return res
+      .status(404)
+      .json({ message: " User not found " });
     }
 
     if (!group?.members.includes(user._id as mongoose.Types.ObjectId)) {
@@ -126,8 +149,10 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
         .json({ message: "User does not exist in the group !!" });
     }
 
-    group.members = group?.members.filter((id) => id.toString() ! == user._id)
+    group.members = group?.members.filter((id) => id.toString() !== (user._id as mongoose.Types.ObjectId).toString()) 
     await group.save();
+
+    await User.findByIdAndUpdate(user._id, { $pull: { groupIds: groupId } });
 
     res.status(200).json({ message: "Member of this prestigious removed from the group",group });
   } catch (error) {
@@ -135,9 +160,10 @@ export const removeMember = async (req: custom, res: Response) :Promise<any>  =>
   }
 };
 
+
 export const deleteGroup = async (req:custom , res:Response) :Promise<any>  => {
     try {
-        const { groupId} = req.body;
+        const { groupId} = req.params;
         const group = await Group.findById(groupId);
 
         if(!group){
@@ -161,6 +187,7 @@ export const deleteGroup = async (req:custom , res:Response) :Promise<any>  => {
         
     }
 }
+
 
 export const addExpenseToGroup = async (req:custom , res:Response) :Promise<any> => {
   try {
@@ -195,6 +222,7 @@ export const addExpenseToGroup = async (req:custom , res:Response) :Promise<any>
   }
 }
 
+
 export const getUserGroups = async ( req: custom, res: Response):Promise<any> => {
   try {
     if(!req.user){
@@ -222,6 +250,25 @@ export const getUserGroups = async ( req: custom, res: Response):Promise<any> =>
     res.status(500).json({ error: "Error Fetching Group", details: error });
   }
 }
+
+export const getGroupMembers = async ( req:custom , res: Response):Promise<any> => {
+
+  try {
+    const {groupId} = req.params
+
+    const group = await Group.findById(groupId).populate("members" , "name email");
+
+    if(!group){
+      return res.status(404).json({ message: " Group not found "})
+    }
+
+    res.status(200).json({ members: group.members })
+    
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching group members",details: error })
+  }
+}
+
 
 // export const settleUpExpense = async ( req:custom,res:Response) => {
 

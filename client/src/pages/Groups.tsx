@@ -4,7 +4,19 @@ import axios from "axios";
 import Footer from "../components/footer";
 import TransactionList from '../components/TransactionList';
 import GroupSettingsModal from '../components/GroupSettingsModal';
+import MembersModal from '../components/MembersModal';
 
+
+interface custom extends Request {
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+    friends: string[];
+    friendRequests: string[];
+    groupIds:string[]
+  };
+}
 
 interface GroupExpense {
   _id: string;
@@ -46,8 +58,10 @@ const Groups: React.FC = () => {
   const [description, setDescription] = useState("");
   const [paidBy, setPaidBy] = useState("");
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
 
   const [transactions, setTransactions] = useState<any[]>([]);
+  const token =localStorage.getItem('token')
 
   useEffect(() => {
     // console.log("Stored Token:", localStorage.getItem("token"));
@@ -145,7 +159,7 @@ const Groups: React.FC = () => {
     console.log("Selected Group: groups ki details", selectedGroup);
 
     try {
-      const token = localStorage.getItem("token");
+      // const token = localStorage.getItem("token");
       if (!token) return;
 
       const response = await axios.post(
@@ -197,9 +211,15 @@ const Groups: React.FC = () => {
     }
   };
 
-  const handleAddMember = async () => {
-    // if (!memberEmail) return alert("Please enter an email.");
-  
+  const handleAddMember = async (email:string) => {
+    
+    console.log("Button Clicked - Calling handleAddMember with:", email);
+
+    if (!email.trim()) {
+      alert("Please enter a valid email.");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -212,12 +232,16 @@ const Groups: React.FC = () => {
         return;
       }
 
+      const requestBody = {
+        groupId: selectedGroup._id,
+        email: email.trim().toLowerCase(),
+      };
+  
+      console.log("Sending request body:", JSON.stringify(requestBody, null, 2)); 
+
       const response = await axios.post(
         "http://localhost:5001/api/group/add-member",
-        {
-          groupId: selectedGroup._id, 
-          email: memberEmail,
-        },
+        requestBody,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -249,13 +273,56 @@ const Groups: React.FC = () => {
       return;
       }
 
-      // const response = await axios
+      if(!selectedGroup){
+        console.log("No group selected: ");
+        return;
+      }
+      const confirmDelete = window.confirm("Are you sure you want to delete this group? ");
+      if (!confirmDelete) return;
+
+      const response = await axios.delete(
+        `http://localhost:5001/api/group/delete/${selectedGroup._id}`,  
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert(response.data.message || "Group deleted successfully!");
+    console.log("Group deleted:", response.data);
 
     } catch (error) {
-      console.log("")
+      console.log("delete me dikkat")
+      console.error("Error deleting group:", error);
+    alert("Failed to delete group.");
     }
   }
   
+  const handleRemoveMember = async (email: string) => {
+    console.log(email);
+    try {
+      // const token =localStorage.getItem('token')
+      const response = await axios.delete(
+        `http://localhost:5001/api/group/remove-member/${selectedGroup?._id}/${email}`,  
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      alert(response.data.message || "Member removed successfully!");
+    console.log("Member removed:", response.data);
+
+
+    } catch (error) {
+      console.error("Error removing member:", error);
+    alert("Failed to remove member.");
+    }
+  }
+
+
 
   return (
     <>
@@ -337,7 +404,9 @@ const Groups: React.FC = () => {
                       >
                         + Add Transaction
                       </button>
-                      <button className="bg-emerald-700 p-3 rounded-lg w-1/4 transition delay-150 duration-300 ease-in-out hover:-translate-y-1 hover:bg-emerald-800">
+                      <button 
+                      onClick={() => {setIsMembersModalOpen(true)}}
+                      className="bg-emerald-700 p-3 rounded-lg w-1/4 transition delay-150 duration-300 ease-in-out hover:-translate-y-1 hover:bg-emerald-800">
                         All Members
                       </button>
                     </div>
@@ -405,13 +474,16 @@ const Groups: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-gray-800 p-6 rounded-lg w-96">
             <h2 className="text-xl font-bold mb-4">Add Transaction</h2>
-            <input
+            <label htmlFor="" className="font-medium text-gray-300">Amount</label>
+            <input 
               type="number"
               placeholder="Amount"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full p-2 mb-4 rounded bg-gray-700 text-white"
+
             />
+            <label htmlFor="" className="font-medium text-gray-300">Description</label>
             <input
               type="text"
               placeholder="Description"
@@ -422,7 +494,7 @@ const Groups: React.FC = () => {
             <select
               value={paidBy}
               onChange={(e) => setPaidBy(e.target.value)}
-              className="w-full p-2 mb-4 rounded bg-gray-700 text-white"
+              className="w-full mt-3 p-2 mb-4 rounded bg-gray-700 text-white"
             >
               <option value="">Paid by</option>
               {selectedGroup?.members.map((member) => (
@@ -431,6 +503,7 @@ const Groups: React.FC = () => {
                 </option>
               ))}
             </select>
+            <label htmlFor="" className="font-medium text-gray-300">Spilt Among</label>
             <select
               multiple
               value={splitAmong}
@@ -439,7 +512,7 @@ const Groups: React.FC = () => {
                   Array.from(e.target.selectedOptions, (option) => option.value)
                 )
               }
-              className="w-full p-2 mb-4 rounded bg-gray-700 text-white"
+              className="w-full p-2 mb-4 overflow-y rounded bg-gray-700 text-white"
             >
               {selectedGroup?.members.map((member) => (
                 <option key={member._id} value={member._id}>
@@ -470,6 +543,12 @@ const Groups: React.FC = () => {
         onClose={() => setSettingMOdal(false)}
         onAddMember={handleAddMember}
         onDeleteGroup={handleDeleteGroup}
+        onRemoveMember={handleRemoveMember}
+      />
+      <MembersModal
+        isOpen={isMembersModalOpen}
+        onClose={() => setIsMembersModalOpen(false)}
+        groupId={selectedGroup?._id || ""}
       />
     </>
   );
