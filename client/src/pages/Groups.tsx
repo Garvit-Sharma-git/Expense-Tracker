@@ -5,6 +5,7 @@ import Footer from "../components/footer";
 import TransactionList from '../components/TransactionList';
 import GroupSettingsModal from '../components/GroupSettingsModal';
 import MembersModal from '../components/MembersModal';
+import SettleUpModal from "../components/settleUp";
 
 
 interface custom extends Request {
@@ -25,6 +26,7 @@ interface GroupExpense {
   amount: number;
   paidBy: string;
   splitAmong: string[];
+  splitDetails:{}[];
   date: string;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +48,11 @@ interface Group {
 }
 
 const Groups: React.FC = () => {
+
+  const [ isModalOpen,setIsModalOpen ] = useState(false);
+  const [settlements, setSettlements] = useState<{ from: string; to: string; amount: number; fromName: string; toName: string }[]>([]);
+
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -56,10 +63,10 @@ const Groups: React.FC = () => {
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
+
   const [paidBy, setPaidBy] = useState("");
   const [splitAmong, setSplitAmong] = useState<string[]>([]);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
-
   const [transactions, setTransactions] = useState<any[]>([]);
   const token =localStorage.getItem('token')
 
@@ -157,6 +164,12 @@ const Groups: React.FC = () => {
       return;
     }
     console.log("Selected Group: groups ki details", selectedGroup);
+    
+    const splitDetails = splitAmong.map((userId) =>({
+      user: userId,
+      amount: Number(amount) / splitAmong.length
+
+    }))
 
     try {
       // const token = localStorage.getItem("token");
@@ -170,6 +183,8 @@ const Groups: React.FC = () => {
           description,
           paidBy,
           splitAmong,
+          splitDetails,
+         
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -212,8 +227,6 @@ const Groups: React.FC = () => {
   };
 
   const handleAddMember = async (email:string) => {
-    
-    console.log("Button Clicked - Calling handleAddMember with:", email);
 
     if (!email.trim()) {
       alert("Please enter a valid email.");
@@ -316,20 +329,131 @@ const Groups: React.FC = () => {
       alert(response.data.message || "Member removed successfully!");
     console.log("Member removed:", response.data);
 
-
-
     } catch (error) {
       console.error("Error removing member:", error);
     alert("Failed to remove member.");
     }
   }
 
+  const handleSettleUp = async () => {
+    try {
+      const groupId= selectedGroup?._id;
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("User is not authenticated");
+        return;
+      }
+      if (!groupId) {
+        alert("No group selected.");
+        return;
+      }
+      const response = await fetch("http://localhost:5001/api/group/settle-up",{
+        method:"POST",
+        headers:{
+          "Content-type":"application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ groupId }),
+      })
+      const data = await response.json()
+      console.log("Settle up data:", data);
+      if(response.ok){
+        const settlementsWithNames = data.settlements.map((settlement: any) => ({
+          ...settlement,
+          fromName: selectedGroup?.members.find(member => member._id === settlement.from)?.name || "",
+          toName: selectedGroup?.members.find(member => member._id === settlement.to)?.name || ""
+        }));
+        setSettlements(settlementsWithNames);
+        setIsModalOpen(true)
+      }else {
+        console.error("Error:", data.message);
+      } 
+      
+      
+    } catch (error) {
+      console.error("Error fetching settlements", error);
+    }
+  }
 
+  const confirmSettlement = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("User is not authenticated");
+      return;
+    }
+  
+    for (const settlement of settlements) {  
+      await fetch("http://localhost:5001/api/group/confirm-settlement", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          groupId: selectedGroup?._id, 
+          fromUserId: settlement.from, 
+          toUserId: settlement.to, 
+          amount: settlement.amount
+        }),
+      });
+    }
+  
+    setIsModalOpen(false);
+  };
+
+
+  
+  const downloadGroupHistory = async (groupId: string) => {
+    try {
+        if (!groupId) {
+            console.error("Error: groupId is undefined");
+            return;
+        }
+
+        // Retrieve token from localStorage (or however you store it)
+        const token = localStorage.getItem("token");
+        if (!token) {
+            console.error("No token found, authorization denied");
+            return;
+        }
+
+        const response = await fetch(
+            `http://localhost:5001/api/group/download-history/${groupId}`,
+            {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,  
+                    "Content-Type": "application/pdf",
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Failed to download file");
+        }
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `group-history-${groupId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        alert("History downloaded successfully!");
+    } catch (error) {
+        console.error("Error downloading history:", error);
+    }
+};
+
+
+  
 
   return (
     <>
       <div className="bg-gray-900 min-h-screen text-white">
-        {/* Navbar */}
         <Navbar />
 
         <div className="flex h-screen">
@@ -385,19 +509,24 @@ const Groups: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Group Financial Summary */}
-                <div className="flex justify-around gap-20 mt-2">
-                  <h1 className="font-bold text-gray-300">Total: 502340 </h1>
-                  <h1 className="font-bold text-green-500">Income: 102240</h1>
-                  <h1 className="font-bold mr-20 text-red-500">Owe: 54322</h1>
+                {/* Download the pdf */}
+                <div className="flex flex-col justify-end items-end mt-3">
+                <button onClick={() => {console.log("Downloading for group:", selectedGroup?._id);
+                  downloadGroupHistory(selectedGroup._id);}} className="p-2 rounded-lg bg-cyan-700 hover:bg-cyan-900 ransition delay-150 duration-300 ease-in-out hover:-translate-y-1">Download PDF</button>
                 </div>
+                
 
                 {/* Group Details */}
                 <div className="bg-stone-100 rounded-lg h-screen m-2 overflow-y-auto">
                   <div className="justify-center p-2 rounded-t-lg gap-5 bg-stone-400">
                     {/* Buttons for Group Actions */}
                     <div className="flex justify-between gap-3">
-                      <button className="bg-red-500 p-3 rounded-lg w-1/4 transition delay-150 duration-300 ease-in-out hover:-translate-y-1 hover:bg-red-700">
+                      <button 
+                      onClick={() => {
+                        console.log("Settle up button clicked yo ::");
+                        handleSettleUp();
+                      }}
+                      className="bg-red-500 p-3 rounded-lg w-1/4 transition delay-150 duration-300 ease-in-out hover:-translate-y-1 hover:bg-red-700">
                         - Settle Up
                       </button>
                       <button
@@ -522,6 +651,7 @@ const Groups: React.FC = () => {
                 </option>
               ))}
             </select>
+
             <div className="flex justify-end">
               <button
                 className="mr-2 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded"
@@ -539,6 +669,14 @@ const Groups: React.FC = () => {
           </div>
         </div>
       )}
+
+<SettleUpModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        settlements={settlements}
+        // onConfirm={confirmSettlement}
+        groupId={selectedGroup?._id || ""}
+      />
 
     <GroupSettingsModal
         isOpen={settingModal}

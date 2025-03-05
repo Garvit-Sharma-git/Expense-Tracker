@@ -23,7 +23,7 @@ import { IUser } from '../models/User';
 //         id:string
 //         name: string;
 //         email: string;
-//         friends: string[];
+//         friends: string[];  
 //         friendRequests: string[];
 //       };
 //     }

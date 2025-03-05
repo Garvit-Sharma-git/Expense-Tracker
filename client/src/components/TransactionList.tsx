@@ -96,9 +96,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ selectedGroup }) => {
     return (
       <div 
         key={expense._id}
-        className= {` flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
+        className={`flex ${isCurrentUser ? "justify-end" : "justify-start"}`}
       >
-        <div className="bg-stone-200 rounded-lg p-4 shadow-md max-w-[70%]">
+        <div className={`bg-stone-00 rounded-lg p-4 transition delay-100 duration-300  hover:-translate-y-1 shadow-md max-w-[70%] ${isCurrentUser ? "bg-neutral-400 " : "bg-stone-200"}`}>
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
               <div className="bg-blue-500 rounded-full p-2">
@@ -126,14 +126,14 @@ const TransactionList: React.FC<TransactionListProps> = ({ selectedGroup }) => {
             </div>
             <div className="text-right">
               <p className="text-xl font-bold text-gray-800">₹{expense.amount}</p>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 ml-1">
                 {new Date(expense.date).toLocaleDateString()}
               </p>
             </div>
           </div>
           <div className="mt-2 pt-2 border-t border-gray-300">
-            <p className="text-sm text-gray-600">Split between:</p>
-            <div className="flex flex-wrap gap-2 mt-1">
+            <p className="text-sm  text-gray-600">Split between:</p>
+            <div className="flex  flex-wrap gap-2 mt-1">
               {expense.splitAmong.map((userId: string) => (
                 <span
                   key={userId}

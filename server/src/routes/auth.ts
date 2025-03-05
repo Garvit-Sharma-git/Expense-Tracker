@@ -24,7 +24,7 @@ router.delete('/expenses/:id', deleteExpense);
 router.get('/verify-token', verifyToken);
 
 router.post('/freindreq',authMiddleware,sendFriendRequest)
-
+ 
 router.put('/expenses/:id',updateExpense)
 
 router.get('/user', authMiddleware, getUser);

@@ -1,6 +1,13 @@
 import { time } from "console";
 import mongoose,{Schema,Document} from "mongoose";
 
+interface ISettlement {
+    from: mongoose.Types.ObjectId;
+    to: mongoose.Types.ObjectId;
+    amount: number;
+    // isSettled: Boolean,
+  }
+
 interface IGroup extends Document{
     name:string;
     admin:mongoose.Types.ObjectId;
@@ -11,6 +18,8 @@ interface IGroup extends Document{
           user:  mongoose.Schema.Types.ObjectId; // User ID
           amount: number; // How much they owe (negative means they are owed money)
         }[];
+    settlements: ISettlement[];
+    
       
 }
 
@@ -39,6 +48,14 @@ const GroupSchema=new Schema<IGroup>({
           amount: { type: Number, default: 0 }, // How much they owe (negative means they are owed money)
         }
       ],
+      settlements: [
+        {
+          from: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          to: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+          amount: Number,
+          // isSettled: Boolean
+        },
+      ],
 },{timestamps:true});
-
+ 
 export default mongoose.model<IGroup>("Group",GroupSchema);

@@ -4,4 +4,4 @@ export interface UserPayload {
     email: string;
     friends: string[];
     friendRequests: string[];
-} 
+}  
